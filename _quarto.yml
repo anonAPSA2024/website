@@ -3,24 +3,29 @@ project:
   output-dir: docs
   
 website:
-  title: "MY WEB SITE"
+  title: "Duncan Espenshade"
   navbar:
+    logo: img/headshot.jpg
     left:
-      - href: index.qmd
+      - href: home.qmd
         text: Home
-      - projects.qmd
+      - Research.qmd
+      - teaching.qmd
+      - CV.qmd
     tools:
-      - icon: twitter
-        href: https://twitter.com/
+      - text: Email
+        href: "mailto:duncane98@tamu.edu"
       - icon: github
-        href: https://github.com/YOURUSERNAME/YOURREPO
+        href: https://github.com/espenshaded/website
   page-footer:
-    right: "Built with [Quarto](https://quarto.org/)"
-    left: "&copy; Copyright 2023, YOUR NAME"
+    right: ""
+    left: "&copy; Copyright 2024, Duncan Espenshade"
 
 format:
   html:
-    theme: cerulean
+    theme: lumen
+    mainfont: Georgia
+    title-block-banner-color: rgb(80, 0, 0)
     toc: true
 
 editor: source

@@ -1,0 +1,18 @@
+---
+title: "Knowledge of Job Insecurity Supplementary Materials"
+---
+
+## Previous Rewarded Grants
+
+[Bush School Dissertation Enhancement Grant](chap2_grants.qmd)
+
+
+## Power Analysis Documents
+
+[Survey Power Analysis](chap2_power_survey.qmd)
+
+
+
+
+
+
