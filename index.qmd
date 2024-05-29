@@ -8,11 +8,8 @@ about:
 
 :::{#me}
 
-## Goals
+## A small Change
 
-## Education
-
-## Experience
 
 :::
 
