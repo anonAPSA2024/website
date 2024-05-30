@@ -3,7 +3,7 @@ project:
   output-dir: docs
   
 website:
-  title: "Duncan Espenshade"
+  title: "Anonymized APSA DDRIG Grant Materials"
   navbar:
     logo: img/headshot.jpg
     left:
@@ -12,14 +12,9 @@ website:
       - Research.qmd
       - teaching.qmd
       - CV.qmd
-    tools:
-      - text: Email
-        href: "mailto:duncane98@tamu.edu"
-      - icon: github
-        href: https://github.com/espenshaded/website
   page-footer:
     right: ""
-    left: "&copy; Copyright 2024, Duncan Espenshade"
+    left: "&copy; Copyright 2024"
 
 format:
   html:
