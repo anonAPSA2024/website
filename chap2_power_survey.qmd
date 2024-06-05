@@ -1,0 +1,652 @@
+---
+title: Anonymized Dissertation Grant
+published-title: 
+engine: knitr
+freeze: false
+cv:
+  pdf: "pdfs/power_survey.pdf"
+---
+
+```{css, echo=FALSE}
+#title-block-header .description {
+    display: none;
+}
+```
+
+```{css echo=FALSE}
+.embed-container {
+    position: relative;
+    padding-bottom: 129%;
+    height: 0;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.embed-container iframe,
+.embed-container object,
+.embed-container embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+```
+
+```{=html}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embed R File</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        pre {
+            background-color: #f5f5f5;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-x: auto;
+        }
+        code {
+            display: block;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Survey Power Analysis</h1>
+<pre><code>
+#####################################
+# From Scratch Power Analysis Monte Carlo
+######################################
+
+# Clear Environment
+rm(list=ls())
+
+
+set.seed(209365)
+
+library(EnvStats)
+library(truncnorm)
+library(ggplot2)
+library(haven)
+library(readr)
+library(tidyverse)
+library(MASS)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(faux)
+library(lubridate)
+library(truncnorm)
+library(scales)
+
+
+set.seed(92351235)
+
+
+
+# Create a timing function for the power analysis
+
+dhms <- function(t){
+  paste(t %/% (60*60*24) 
+        ,paste(formatC(t %/% (60*60) %% 24, width = 2, format = "d", flag = "0")
+               ,formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
+               ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+               ,sep = ":"
+        )
+  )
+}
+
+
+# Informed Direct Effects
+b1_vector <- c(.2, .5)
+
+#Uninformed Spillover Effects
+b2_vector <- c(.5,.8)
+
+# Informed Direct Effects
+b3_vector <- c(.2)
+
+#Uninformed Spillover Effects
+b4_vector <- c(.2, .5)
+
+# Informed Direct Effects
+b5_vector <- c(.2, .5)
+
+#Uninformed Spillover Effects
+b6_vector <- c(-.2, -.5)
+
+# Informed Direct Effects
+b7_vector <- c(.2)
+
+
+
+
+
+
+
+# Sample Size Vector
+input_sample_size_vector <- seq(from=1000, to=2000, by=200)
+
+
+
+a <- 1
+c <- 1
+number_of_samples <- 100
+
+
+power_mc_hypo <- function(b1_vector, b2_vector, b3_vector, b4_vector, b5_vector,
+b6_vector,b7_vector,input_sample_size_vector, number_of_samples){
+  
+  
+  
+  permutations <- expand.grid(b1_vector, b2_vector, b3_vector, b4_vector, b5_vector, 
+  b6_vector,b7_vector, input_sample_size_vector)
+  
+  
+  permutations <- dplyr::rename(permutations, beta1=Var1, beta2=Var2, beta3=Var3,
+                                beta4=Var4, beta5=Var5, beta6=Var6, beta7=Var7,
+                                sample_size=Var8)
+  
+  startTimeTotal <- Sys.time()
+  for(a in 1:nrow(permutations)){
+    beta1_temp <- permutations$beta1[a]
+    beta2_temp <- permutations$beta2[a]
+    beta3_temp <- permutations$beta3[a]
+    beta4_temp <- permutations$beta4[a]
+    beta5_temp <- permutations$beta5[a]
+    beta6_temp <- permutations$beta6[a]
+    beta7_temp <- permutations$beta7[a]
+
+    sample_size <- permutations$sample_size[a]
+
+    
+    
+    startTime <- Sys.time() 
+    
+    
+    
+    c_data <-as.data.frame(matrix(data=NA, 
+                                  nrow=(number_of_samples),
+                                  ncol=37))
+    
+    
+    c_data <- rename(c_data, 
+                     H1_agg_mig = V1,
+                     H1_agg_auto = V2,
+                     H1_agg_off = V3,
+                     H1_agg_imp = V4,
+                     H2_agg_mig = V5,
+                     H2_agg_auto = V6,
+                     H2_agg_off = V7,
+                     H2_agg_imp = V8,
+                     H3_agg_mig = V9,
+                     H3_agg_auto = V10,
+                     H3_agg_off = V11,
+                     H3_agg_imp = V12,
+                     H4_agg_mig = V13,
+                     H4_agg_auto = V14,
+                     H4_agg_off = V15,
+                     H4_agg_imp = V16,
+                     H5_agg_auto = V18,
+                     H5_agg_off = V19,
+                     H5_agg_imp = V20,
+                     H6_agg_mig = V21,
+                     H6_agg_auto = V22,
+                     H6_agg_off = V23,
+                     H6_agg_imp = V24,
+                     H7_agg_mig = V25,
+                     H7_agg_auto = V26,
+                     H7_agg_off = V27,
+                     H7_agg_imp = V28,
+                     sample_size=V29,
+                     correlation=V30,
+                     beta1=V31,
+                     beta2=V32,
+                     beta3=V33,
+                     beta4=V34,
+                     beta5=V35,
+                     beta6=V36,
+                     beta7=V37
+    )
+    
+    
+    for(c in 1:number_of_samples){
+      
+      ind_sample <-as.data.frame(matrix(data=NA, 
+                                        nrow=(sample_size),
+                                        ncol=1))
+      
+      
+      
+      county_fe <- seq(from=-1, to=1, length.out=254)
+      state <- seq(from=1, to=50, by=1 )
+
+      ind_sample$county_fe <- sample(county_fe, sample_size, replace=TRUE)
+      ind_sample$state <- sample(state, sample_size, replace=TRUE)
+      
+      ind_sample$off_ind_con <- rtruncnorm(sample_size,0,1,.5,.25)
+      ind_sample$mig_ind_con <-rtruncnorm(sample_size,0,1,.5,.25)
+      ind_sample$auto_ind_con <-rtruncnorm(sample_size,0,1,.5,.25)
+      ind_sample$imp_ind_con <-rtruncnorm(sample_size,0,1,.5,.25)
+      
+      
+
+      ind_sample$off_ind <- ntile(ind_sample$off_ind_con, 7)
+      ind_sample$mig_ind <- ntile(ind_sample$mig_ind_con, 7)
+      ind_sample$auto_ind <- ntile(ind_sample$auto_ind_con, 7)
+      ind_sample$imp_ind <- ntile(ind_sample$imp_ind_con, 7)
+
+      
+      state_risks <- ind_sample %>%
+                    group_by(state) %>%
+                    dplyr::summarise(state_mig= mean(mig_ind_con),
+                                     state_off= mean(off_ind_con),
+                                     state_auto= mean(auto_ind_con),
+                                     state_imp= mean(imp_ind_con),
+                                     )
+      
+   
+      ind_sample <- merge(ind_sample, state_risks, by=("state"))
+      
+      
+      ind_sample$union <- rbinom(sample_size, size=1, prob=.1)
+      ind_sample$party <- rbinom(sample_size, size=1, prob=.5)
+      
+      ind_sample$cor_temp <- rtruncnorm(sample_size,0,1) + 
+      beta7_temp*ind_sample$union
+      
+      ind_sample$cor_temp <- ifelse(ind_sample$cor_temp>=.95, .95, 
+      ind_sample$cor_temp)
+    
+      
+      ind_sample$off_ind_pec_con <-  rnorm_pre(ind_sample$off_ind, 
+      r=ind_sample$cor_temp) 
+      
+      ind_sample$mig_ind_pec_con <- rnorm_pre(ind_sample$mig_ind,
+      r=ind_sample$cor_temp) 
+      
+      ind_sample$auto_ind_pec_con <- rnorm_pre(ind_sample$auto_ind,
+      r=ind_sample$cor_temp) 
+      
+      ind_sample$imp_ind_pec_con <- rnorm_pre(ind_sample$imp_ind,
+      r=ind_sample$cor_temp)  
+      
+
+      ind_sample$off_ind_pec <- ntile(ind_sample$off_ind_pec_con, 7)
+      ind_sample$mig_ind_pec <- ntile(ind_sample$mig_ind_pec_con, 7)
+      ind_sample$auto_ind_pec <- ntile(ind_sample$auto_ind_pec_con, 7)
+      ind_sample$imp_ind_pec <- ntile(ind_sample$imp_ind_pec_con, 7)
+
+      
+      ind_sample$off_ind_cer <- rtruncnorm(sample_size,0,1,.5,.25)
+      ind_sample$mig_ind_cer <-rtruncnorm(sample_size,0,1,.5,.25)
+      ind_sample$auto_ind_cer <-rtruncnorm(sample_size,0,1,.5,.25)
+      ind_sample$imp_ind_cer <-rtruncnorm(sample_size,0,1,.5,.25)
+      
+      # 
+      ind_sample$off_ind_cer <- ntile(ind_sample$off_ind_cer, 7)
+      ind_sample$mig_ind_cer <- ntile(ind_sample$mig_ind_cer, 7)
+      ind_sample$auto_ind_cer <- ntile(ind_sample$auto_ind_cer, 7)
+      ind_sample$imp_ind_cer <- ntile(ind_sample$imp_ind_cer, 7)
+      # 
+      ind_sample$not_off_ind <- ind_sample$mig_ind + ind_sample$auto_ind + 
+      ind_sample$imp_ind
+      
+      ind_sample$not_mig_ind <- ind_sample$off_ind + ind_sample$auto_ind + 
+      ind_sample$imp_ind
+      
+      ind_sample$not_auto_ind <- ind_sample$mig_ind + ind_sample$off_ind + 
+      ind_sample$imp_ind
+      
+      ind_sample$not_imp_ind <- ind_sample$mig_ind + ind_sample$auto_ind +
+      ind_sample$off_ind
+      
+      
+      ind_sample$mig_acc <- (7-abs(ind_sample$mig_ind- ind_sample$mig_ind_pec))
+      ind_sample$off_acc <- (7-abs(ind_sample$off_ind- ind_sample$off_ind_pec))
+      ind_sample$auto_acc <- (7-abs(ind_sample$auto_ind- ind_sample$auto_ind_pec))
+      ind_sample$imp_acc <- (7-abs(ind_sample$imp_ind- ind_sample$imp_ind_pec))
+  
+
+      ind_sample$error <- rnorm(sample_size,0,1)
+      
+    
+      
+
+      
+      ind_sample$mig_opp_og <- ind_sample$county_fe+ #County Fixed Effects
+                            beta1_temp*ind_sample$mig_ind +
+                            beta2_temp*ind_sample$mig_ind_pec +
+                          .5*ind_sample$not_mig_ind +
+                            beta4_temp*ind_sample$mig_ind_cer+
+                            beta5_temp*(ind_sample$mig_ind_cer*ind_sample$mig_ind_pec)+
+                            beta6_temp*(ind_sample$mig_ind_cer*ind_sample$not_mig_ind)+
+                             .2*ind_sample$state_mig + ind_sample$error
+      
+      
+      
+      
+      ind_sample$off_opp_og <- ind_sample$county_fe+ #County Fixed Effects
+        beta1_temp*ind_sample$off_ind +
+        beta2_temp*ind_sample$off_ind_pec +
+        beta3_temp*ind_sample$not_off_ind +
+        beta4_temp*ind_sample$off_ind_cer+
+        beta5_temp*(ind_sample$off_ind_cer*ind_sample$off_ind_pec)+
+        beta6_temp*(ind_sample$off_ind_cer*ind_sample$not_off_ind)+
+        .2*ind_sample$state_off +  ind_sample$error
+      
+      
+      ind_sample$auto_opp_og <- ind_sample$county_fe+ #County Fixed Effects
+        beta1_temp*ind_sample$auto_ind +
+        beta2_temp*ind_sample$auto_ind_pec +
+        beta3_temp*ind_sample$not_auto_ind +
+        beta4_temp*ind_sample$auto_ind_cer+
+        beta5_temp*(ind_sample$auto_ind_cer*ind_sample$auto_ind_pec)+
+        beta6_temp*(ind_sample$auto_ind_cer*ind_sample$not_auto_ind)+
+        .2*ind_sample$state_auto + ind_sample$error
+      
+      
+      
+      ind_sample$imp_opp_og <- ind_sample$county_fe+ #County Fixed Effects
+        beta1_temp*ind_sample$imp_ind +
+        beta2_temp*ind_sample$imp_ind_pec +
+        beta3_temp*ind_sample$not_imp_ind +
+        beta4_temp*ind_sample$imp_ind_cer+
+        beta5_temp*(ind_sample$imp_ind_cer*ind_sample$imp_ind_pec)+
+        beta6_temp*(ind_sample$imp_ind_cer*ind_sample$not_imp_ind)+
+        .2*ind_sample$state_imp+  ind_sample$error
+      
+      
+      
+      ## Turn outcome variables into 7 categories
+      ind_sample$mig_opp <- ntile(ind_sample$mig_opp_og, 7)
+      ind_sample$off_opp <- ntile(ind_sample$off_opp_og, 7)
+      ind_sample$auto_opp <- ntile(ind_sample$auto_opp_og, 7)
+      ind_sample$imp_opp <-  ntile(ind_sample$imp_opp_og, 7)
+      
+      
+      
+      
+                 
+      
+      #########################
+      # Hypothesis 1
+      #########################
+
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
+      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      c_data$H1_agg_mig[c] <-ifelse(temp$coefficients[2,4]<.05&
+                                temp$coefficients[2,1]>0,1,0)
+      
+      
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
+      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      c_data$H1_agg_off[c] <-ifelse(temp$coefficients[2,4]<.05&
+                                      temp$coefficients[2,1]>0,1,0)
+      
+      
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
+      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      c_data$H1_agg_auto[c] <-ifelse(temp$coefficients[2,4]<.05&
+                                      temp$coefficients[2,1]>0,1,0)
+      
+      
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
+      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      c_data$H1_agg_imp[c] <-ifelse(temp$coefficients[2,4]<.05&
+                                      temp$coefficients[2,1]>0,1,0)
+      
+      
+      
+      #########################
+      # Hypothesis 2
+      #########################
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
+      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      c_data$H2_agg_mig[c] <-ifelse(temp$coefficients[3,4]<.05&
+                              temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+      
+      
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
+      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      c_data$H2_agg_off[c] <-ifelse(temp$coefficients[3,4]<.05&
+                             temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+      
+      
+    
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
+      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      c_data$H2_agg_auto[c] <-ifelse(temp$coefficients[3,4]<.05&
+                             temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+      
+      
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
+      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      c_data$H2_agg_imp[c] <-ifelse(temp$coefficients[3,4]<.05&
+                              temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+      
+      
+      #########################
+      # Hypothesis 3
+      #########################
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
+      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      c_data$H3_agg_mig[c] <-ifelse(temp$coefficients[8,4]<.05&
+                                      temp$coefficients[8,1]>0,1,0)
+      
+      
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
+      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      c_data$H3_agg_off[c] <-ifelse(temp$coefficients[8,4]<.05&
+                                      temp$coefficients[8,1]>0,1,0)
+      
+      
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
+      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      c_data$H3_agg_auto[c] <-ifelse(temp$coefficients[8,4]<.05&
+                                       temp$coefficients[8,1]>0,1,0)
+      
+      
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
+      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      c_data$H3_agg_imp[c] <-ifelse(temp$coefficients[8,4]<.05&
+                                      temp$coefficients[8,1]>0,1,0)
+      
+      #########################
+      # Hypothesis 4
+      #########################
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
+      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      c_data$H4_agg_mig[c] <-ifelse(temp$coefficients[9,4]<.05&
+                                      temp$coefficients[9,1]<0
+                                      ,1,0)
+
+
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
+      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      c_data$H4_agg_off[c] <-ifelse(temp$coefficients[9,4]<.05&
+                                      temp$coefficients[9,1]<0,1,0)
+
+
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
+      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      c_data$H4_agg_auto[c] <-ifelse(temp$coefficients[9,4]<.05&
+                                       temp$coefficients[9,1]<0,1,0)
+
+
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
+      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      c_data$H4_agg_imp[c] <-ifelse(temp$coefficients[9,4]<.05&
+                                      temp$coefficients[9,1]<0,1,0)
+      
+      
+      
+      #########################
+      # Hypothesis 5
+      #########################
+      temp_mig <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
+      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+  
+      
+      
+      temp_off <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
+      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+
+      
+      temp_auto <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
+      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+
+      
+      
+      temp_imp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
+      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+   
+      
+      c_data$H5_agg_auto <- ifelse(temp_mig$coefficients[4,1]>
+      temp_auto$coefficients[4,1] &
+                                temp_mig$coefficients[4,4]<.05,1,0)
+      
+      c_data$H5_agg_imp <- ifelse(temp_mig$coefficients[4,1]>
+      temp_imp$coefficients[4,1] &
+                                     temp_mig$coefficients[4,4]<.05,1,0)
+      
+      c_data$H5_agg_off <- ifelse(temp_mig$coefficients[4,1]>
+      temp_off$coefficients[4,1] &
+                                     temp_mig$coefficients[4,4]<.05,1,0)
+      
+      
+      
+      ###############################
+      # Hypothesis 6
+      ###############################
+      
+      temp <- summary(lm(mig_acc ~ union, data=ind_sample))
+      c_data$H6_agg_mig[c] <-ifelse(temp$coefficients[2,4]<.05&
+                                      temp$coefficients[2,1]>0,1,0)
+      
+      temp <- summary(lm(off_acc ~ union, data=ind_sample))
+      c_data$H6_agg_off[c] <-ifelse(temp$coefficients[2,4]<.05&
+                                      temp$coefficients[2,1]>0,1,0)
+      
+      temp <- summary(lm(auto_acc ~ union, data=ind_sample))
+      c_data$H6_agg_auto[c] <-ifelse(temp$coefficients[2,4]<.05&
+                                      temp$coefficients[2,1]>0,1,0)
+      
+      temp <- summary(lm(imp_acc ~ union, data=ind_sample))
+      c_data$H6_agg_imp[c] <-ifelse(temp$coefficients[2,4]<.05&
+                                      temp$coefficients[2,1]>0,1,0)
+      
+      
+
+      
+      
+      
+      #######################
+      # Export True DGP Data
+      #########################
+
+      c_data$sample_size[c] <- sample_size
+      c_data$beta1[c] <- beta1_temp
+      c_data$beta2[c] <- beta2_temp
+      c_data$beta3[c] <- beta3_temp
+      c_data$beta4[c] <- beta4_temp
+      c_data$beta5[c] <- beta5_temp
+      c_data$beta6[c] <- beta6_temp
+      c_data$beta7[c] <- beta7_temp
+
+
+      
+      
+    }
+    
+    
+    
+    if(a==1){b_data <- c_data}else{
+      b_data <- rbind(b_data, c_data)}
+    
+    
+    
+    endTime <- Sys.time() 
+    
+    
+    
+    cat(paste0("Loop ", a,"/", nrow(permutations), "\n",
+               "Loop Duration: ", round(as.numeric(endTime-startTime),2),
+               " seconds"),"\n",
+        "Total Duration: ", dhms(as.numeric(endTime)-as.numeric(startTimeTotal)),
+        "\n","###############","\n")
+  }
+  
+  
+  return(b_data)
+}
+
+mc_data <- power_mc_hypo(b1_vector = b1_vector,
+                         b2_vector = b2_vector,
+                         b3_vector = b3_vector,
+                         b4_vector = b4_vector,
+                         b5_vector = b5_vector,
+                         b6_vector = b6_vector,
+                         b7_vector = b7_vector,
+                         number_of_samples = 100,
+                         input_sample_size_vector=input_sample_size_vector)
+
+
+
+
+write_dta(mc_data, 
+          "survey_power_analysis.dta")
+
+
+
+
+
+
+
+
+</code></pre>
+
+</body>
+</html>
+```
+
+
+```{=html}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download .dta File</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        .download-button {
+            background-color: #4CAF50; /* Green */
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Download Your .dta File</h1>
+<a href="path/to/yourfile.dta" download="yourfile.dta" class="download-button">Download</a>
+
+</body>
+</html>
+```

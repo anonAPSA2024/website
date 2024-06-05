@@ -1,0 +1,26 @@
+---
+title: "European Social Survey 2014 Occupation Plot Replication Materials"
+---
+
+
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View-Only File</title>
+    <style>
+        .view-only {
+            user-select: none; /* Disable text selection */
+            pointer-events: none; /* Disable pointer events (clicks, etc.) */
+        }
+    </style>
+</head>
+<body>
+    <div class="view-only">
+        <h1>View-Only Content</h1>
+        <p>This is a sample text that is view-only. You cannot select, copy, or edit this text.</p>
+    </div>
+</body>
+</html>
+

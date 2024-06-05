@@ -5,18 +5,16 @@ project:
 website:
   title: "Anonymized APSA DDRIG Grant Materials"
   navbar:
-    logo: img/headshot.jpg
     left:
-      - href: Research.qmd
-        text: Grant Materials
-      - Research.qmd
+      - href: chap2.qmd
+      - chap2_grants.qmd
   page-footer:
     right: ""
     left: "&copy; Copyright 2024"
 
 format:
   html:
-    theme: lumen
+    theme: sandstone
     mainfont: Georgia
     title-block-banner-color: rgb(80, 0, 0)
     toc: true
