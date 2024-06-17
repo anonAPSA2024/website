@@ -1,5 +1,5 @@
 ---
-title: Anonymized Dissertation Grant
+title: Power Analysis for the Experiment
 published-title: 
 engine: knitr
 freeze: false
@@ -34,13 +34,996 @@ cv:
 ```
 
 ```{=html}
-<p class="text-center">
-  <a class="btn btn-primary btn-lg cv-download" href="`r rmarkdown::metadata$cv$pdf`" target="_blank">
-    <i class="fa-solid fa-file-arrow-down"></i>&ensp;Download Anonymized Grant
-  </a>
-</p>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embed R File</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        pre {
+            background-color: #f5f5f5;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-x: auto;
+        }
+        code {
+            display: block;
+            white-space: pre;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
 
-<div class="embed-container">
-  <iframe src="`r rmarkdown::metadata$cv$pdf`" style="border: 0.5px"></iframe>
-</div>
+<h1>Survey Power Analysis</h1>
+<pre><code>
+#####################################
+# From Scratch Power Analysis Monte Carlo
+######################################
+
+# Clear Environment
+rm(list=ls())
+
+
+set.seed(209365)
+
+library(EnvStats)
+library(truncnorm)
+library(ggplot2)
+library(haven)
+library(readr)
+library(tidyverse)
+library(MASS)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(faux)
+library(lubridate)
+
+
+dhms <- function(t){
+  paste(t %/% (60*60*24) 
+        ,paste(formatC(t %/% (60*60) %% 24, width = 2, format = "d", flag = "0")
+               ,formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
+               ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+               ,sep = ":"
+        )
+  )
+}
+
+b1_vector <- c(.2, .5)
+b2_vector <- c(.2, .5)
+b3_vector <- c(.2)
+
+input_sample_size_vector <- seq(from=500, to=3000, by=100)
+
+cor_vector <- c(.2,.5,.8)
+
+
+treatment_weight <- list(c(.1666,.1666,.1666,.1666,.1666,.1666))
+
+#treatment_weight <- list(c(.25,.1,.1,.25,.15,.15),c(.1666,.1666,.1666,.1666,.1666,.1666))
+
+
+power_mc <- function(b1_vector, b2_vector, b3_vector,  cor_vector, number_of_samples, input_sample_size_vector, treatment_weight){
+  
+  
+  permutations <- expand.grid(b1_vector, b2_vector, b3_vector,
+                              input_sample_size_vector, cor_vector, treatment_weight)
+  
+  
+  permutations <- dplyr::rename(permutations, beta1=Var1, beta2=Var2, beta3=Var3,
+                                sample_size=Var4, cor=Var5, treatment_weight=Var6)
+  
+  
+  
+
+  for(a in 1:nrow(permutations)){
+    cor_temp <- permutations$cor[a]
+    beta1_temp <- permutations$beta1[a]
+    beta2_temp <- permutations$beta2[a]
+    beta3_temp <- permutations$beta3[a]
+    sample_size <- permutations$sample_size[a]
+    treatment_weight_temp <- permutations$treatment_weight[[a]]
+
+
+
+
+
+      
+      
+      c_data <-as.data.frame(matrix(data=NA, 
+                                    nrow=(number_of_samples),
+                                    ncol=30))
+      
+      c_data <- rename(c_data, 
+                       con1_mig=V1,
+                       con1_off=V2,
+                       con1_auto=V3,
+                       con1_imp=V4,
+                       con2_mig=V5,
+                       con2_off=V6,
+                       con2_auto=V7,
+                       con2_imp=V8,
+                       con3_mig=V9,
+                       con3_off=V10,
+                       con3_auto=V11,
+                       con3_imp=V12,
+                       con4_mig=V13,
+                       con4_off=V14,
+                       con4_auto=V15,
+                       con4_imp=V16,
+                       con5_mig=V17,
+                       con5_off=V18,
+                       con5_auto=V19,
+                       con5_imp=V20,
+                       con6_mig=V21,
+                       con6_off=V22,
+                       con6_auto=V23,
+                       con6_imp=V24,
+                       sample_size=V25,
+                       correlation=V26,
+                       beta1=V27,
+                       beta2=V28,
+                       beta3=V29,
+                       treatment_weight=V30
+      )
+      
+   
+      for(c in 1:number_of_samples){
+      
+      ind_sample <-as.data.frame(matrix(data=NA, 
+                                        nrow=(sample_size),
+                                        ncol=29))
+      
+      
+      ind_sample <- rename(ind_sample,
+                           y_mig_b=V1,
+                           y_imp_b=V2,
+                           y_auto_b=V3,
+                           y_off_b=V4,
+                           y_mig_1=V5,
+                           y_imp_1=V6,
+                           y_auto_1=V7,
+                           y_off_1=V8,
+                           y_mig_2=V9,
+                           y_imp_2=V10,
+                           y_auto_2=V11,
+                           y_off_2=V12,
+                           y_mig_3=V13,
+                           y_imp_3=V14,
+                           y_auto_3=V15,
+                           y_off_3=V16,
+                           y_mig_4=V17,
+                           y_imp_4=V18,
+                           y_auto_4=V19,
+                           y_off_4=V20,
+                           y_mig_5=V21,
+                           y_imp_5=V22,
+                           y_auto_5=V23,
+                           y_off_5=V24,
+                           y_mig_6=V25,
+                           y_imp_6=V26,
+                           y_auto_6=V27,
+                           y_off_6=V28,
+                           treatment=V29)
+      
+                      
+      
+    treatments <- c("C1","C2","C3","C4","C5","C6")
+    
+    ind_sample$treatment <- sample(treatments, sample_size, replace=TRUE,
+                                    prob=treatment_weight_temp)
+    ind_sample$y_mig_b <- rnorm(sample_size,0,1)
+    ind_sample$y_imp_b <- rnorm(sample_size,0,1)
+    ind_sample$y_auto_b <- rnorm(sample_size,0,1)
+    ind_sample$y_off_b <- rnorm(sample_size,0,1)
+    
+    
+    ### Condition One (Control, Control)
+    ind_sample$y_mig_1 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_mig_1_dif <- ind_sample$y_mig_1 - ind_sample$y_mig_b
+    ind_sample$y_mig_1_dif <- ifelse(ind_sample$treatment=="C1",
+                                  ind_sample$y_mig_1_dif,
+                                  NA)
+    
+  
+    ind_sample$y_auto_1 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_auto_1_dif <- ind_sample$y_auto_1 - ind_sample$y_auto_b
+    ind_sample$y_auto_1_dif <- ifelse(ind_sample$treatment=="C1",
+                                     ind_sample$y_auto_1_dif,
+                                     NA)
+    
+    ind_sample$y_imp_1 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_imp_1_dif <- ind_sample$y_imp_1 - ind_sample$y_imp_b
+    ind_sample$y_imp_1_dif <- ifelse(ind_sample$treatment=="C1",
+                                     ind_sample$y_imp_1_dif,
+                                     NA)
+    
+    ind_sample$y_off_1 <-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_off_1_dif <- ind_sample$y_off_1 - ind_sample$y_off_b
+    ind_sample$y_off_1_dif <- ifelse(ind_sample$treatment=="C1",
+                                     ind_sample$y_off_1_dif,
+                                     NA)
+    
+
+    
+    ### Condition Two  (Control, Offshore)
+    ind_sample$y_mig_2 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_mig_2_dif <- ind_sample$y_mig_2 - ind_sample$y_mig_b
+    ind_sample$y_mig_2_dif <- ifelse(ind_sample$treatment=="C2",
+                                     ind_sample$y_mig_2_dif,
+                                     NA)
+    
+    ind_sample$y_auto_2 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_auto_2_dif <- ind_sample$y_auto_2 - ind_sample$y_auto_b
+    ind_sample$y_auto_2_dif <- ifelse(ind_sample$treatment=="C2",
+                                     ind_sample$y_auto_2_dif,
+                                     NA)
+    
+    ind_sample$y_imp_2 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_imp_2_dif <- ind_sample$y_imp_2 - ind_sample$y_imp_b
+    ind_sample$y_imp_2_dif <- ifelse(ind_sample$treatment=="C2",
+                                     ind_sample$y_imp_2_dif,
+                                     NA)
+    
+    ind_sample$y_off_2 <-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp - 1* beta3_temp
+    ind_sample$y_off_2_dif <- ind_sample$y_off_2 - ind_sample$y_off_b
+    ind_sample$y_off_2_dif <- ifelse(ind_sample$treatment=="C2",
+                                     ind_sample$y_off_2_dif,
+                                     NA)
+    
+    
+    
+    
+    ### Condition Three  (General, Control)
+    ind_sample$y_mig_3 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+    ind_sample$y_mig_3_dif <- ind_sample$y_mig_3 - ind_sample$y_mig_b
+    ind_sample$y_mig_3_dif <- ifelse(ind_sample$treatment=="C3",
+                                     ind_sample$y_mig_3_dif,
+                                     NA)
+    
+    ind_sample$y_auto_3 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+    ind_sample$y_auto_3_dif <- ind_sample$y_auto_3 - ind_sample$y_auto_b
+    ind_sample$y_auto_3_dif <- ifelse(ind_sample$treatment=="C3",
+                                     ind_sample$y_auto_3_dif,
+                                     NA)
+    
+    ind_sample$y_imp_3 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+    ind_sample$y_imp_3_dif <- ind_sample$y_imp_3 - ind_sample$y_imp_b
+    ind_sample$y_imp_3_dif <- ifelse(ind_sample$treatment=="C3",
+                                     ind_sample$y_imp_3_dif,
+                                     NA)
+    
+    ind_sample$y_off_3<-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+    ind_sample$y_off_3_dif <- ind_sample$y_off_3 - ind_sample$y_off_b
+    ind_sample$y_off_3_dif <- ifelse(ind_sample$treatment=="C3",
+                                     ind_sample$y_off_3_dif,
+                                     NA)
+    
+    
+    
+    
+    ### Condition Four  (General, Offshore)
+    
+    ind_sample$y_mig_4 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+    ind_sample$y_mig_4_dif <- ind_sample$y_mig_4 - ind_sample$y_mig_b
+    ind_sample$y_mig_4_dif <- ifelse(ind_sample$treatment=="C4",
+                                     ind_sample$y_mig_4_dif,
+                                     NA)
+    
+    ind_sample$y_auto_4 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+    ind_sample$y_auto_4_dif <- ind_sample$y_auto_4 - ind_sample$y_auto_b
+    ind_sample$y_auto_4_dif <- ifelse(ind_sample$treatment=="C4",
+                                     ind_sample$y_auto_4_dif,
+                                     NA)
+    
+    ind_sample$y_imp_4 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+    ind_sample$y_imp_4_dif <- ind_sample$y_imp_4 - ind_sample$y_imp_b
+    ind_sample$y_imp_4_dif <- ifelse(ind_sample$treatment=="C4",
+                                     ind_sample$y_imp_4_dif,
+                                     NA)
+    
+    ind_sample$y_off_4<-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp - 1* beta3_temp
+    ind_sample$y_off_4_dif <- ind_sample$y_off_4 - ind_sample$y_off_b
+    ind_sample$y_off_4_dif <- ifelse(ind_sample$treatment=="C4",
+                                     ind_sample$y_off_4_dif,
+                                     NA)
+    
+    
+    ### Condition Five  (Auto, Control)
+    
+    ind_sample$y_mig_5 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_mig_5_dif <- ind_sample$y_mig_5 - ind_sample$y_mig_b
+    ind_sample$y_mig_5_dif <- ifelse(ind_sample$treatment=="C5",
+                                     ind_sample$y_mig_5_dif,
+                                     NA)
+    
+    ind_sample$y_auto_5 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 1*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_auto_5_dif <- ind_sample$y_auto_5 - ind_sample$y_auto_b
+    ind_sample$y_auto_5_dif <- ifelse(ind_sample$treatment=="C5",
+                                     ind_sample$y_auto_5_dif,
+                                     NA)
+    
+    ind_sample$y_imp_5 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_imp_5_dif <- ind_sample$y_imp_5 - ind_sample$y_imp_b
+    ind_sample$y_imp_5_dif <- ifelse(ind_sample$treatment=="C5",
+                                     ind_sample$y_imp_5_dif,
+                                     NA)
+    
+    ind_sample$y_off_5<-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_off_5_dif <- ind_sample$y_off_5 - ind_sample$y_off_b
+    ind_sample$y_off_5_dif <- ifelse(ind_sample$treatment=="C5",
+                                     ind_sample$y_off_5_dif,
+                                     NA)
+    
+    
+    
+    ### Condition Six  (Auto, Offshore)
+    
+    ind_sample$y_mig_6 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_mig_6_dif <- ind_sample$y_mig_6 - ind_sample$y_mig_b
+    ind_sample$y_mig_6_dif <- ifelse(ind_sample$treatment=="C6",
+                                     ind_sample$y_mig_6_dif,
+                                     NA)
+    
+    ind_sample$y_auto_6 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 1*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_auto_6_dif <- ind_sample$y_auto_6 - ind_sample$y_auto_b
+    ind_sample$y_auto_6_dif <- ifelse(ind_sample$treatment=="C6",
+                                     ind_sample$y_auto_6_dif,
+                                     NA)
+    
+    ind_sample$y_imp_6 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+    ind_sample$y_imp_6_dif <- ind_sample$y_imp_6 - ind_sample$y_imp_b
+    ind_sample$y_imp_6_dif <- ifelse(ind_sample$treatment=="C6",
+                                     ind_sample$y_imp_6_dif,
+                                     NA)
+    
+    ind_sample$y_off_6<-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp - 1* beta3_temp
+    ind_sample$y_off_6_dif <- ind_sample$y_off_6 - ind_sample$y_off_b
+    ind_sample$y_off_6_dif <- ifelse(ind_sample$treatment=="C6",
+                                     ind_sample$y_off_6_dif,
+                                     NA)
+    
+    
+    
+    
+    
+    #######
+    # Condition One
+    #######
+    
+    temp <- t.test(ind_sample$y_mig_b, ind_sample$y_mig_1, alternative ="two.sided")
+    c_data$con1_mig[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    temp <- t.test(ind_sample$y_off_b, ind_sample$y_off_1, alternative ="two.sided")
+    c_data$con1_off[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    temp <- t.test(ind_sample$y_auto_b, ind_sample$y_auto_1, alternative ="two.sided")
+    c_data$con1_auto[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    temp <- t.test(ind_sample$y_imp_b, ind_sample$y_imp_1, alternative ="two.sided")
+    c_data$con1_imp[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    
+    #######
+    # Condition Two
+    #######
+    
+    temp <- t.test(ind_sample$y_mig_1_dif, ind_sample$y_mig_2_dif, alternative ="two.sided")
+    c_data$con2_mig[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    temp <- t.test(ind_sample$y_off_1_dif, ind_sample$y_off_2_dif, alternative ="greater")
+    c_data$con2_off[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_auto_1_dif, ind_sample$y_auto_2_dif, alternative ="two.sided")
+    c_data$con2_auto[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    temp <- t.test(ind_sample$y_imp_1_dif, ind_sample$y_imp_2_dif, alternative ="two.sided")
+    c_data$con2_imp[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    
+    #######
+    # Condition Three
+    #######
+    
+    temp <- t.test(ind_sample$y_mig_1_dif, ind_sample$y_mig_3_dif, alternative ="less")
+    c_data$con3_mig[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_off_1_dif, ind_sample$y_off_3_dif, alternative ="less")
+    c_data$con3_off[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_auto_1_dif, ind_sample$y_auto_3_dif, alternative ="less")
+    c_data$con3_auto[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_imp_1_dif, ind_sample$y_imp_3_dif, alternative ="less")
+    c_data$con3_imp[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    
+    
+    
+    #######
+    # Condition Four
+    #######
+    
+    temp <- t.test(ind_sample$y_mig_1_dif, ind_sample$y_mig_4_dif, alternative ="less")
+    c_data$con4_mig[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_off_1_dif, ind_sample$y_off_4_dif, alternative ="greater")
+    c_data$con4_off[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_auto_1_dif, ind_sample$y_auto_4_dif, alternative ="less")
+    c_data$con4_auto[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_imp_1_dif, ind_sample$y_imp_4_dif, alternative ="less")
+    c_data$con4_imp[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    
+    #######
+    # Condition Five
+    #######
+    
+    temp <- t.test(ind_sample$y_mig_1_dif, ind_sample$y_mig_5_dif, alternative ="two.sided")
+    c_data$con5_mig[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    temp <- t.test(ind_sample$y_off_1_dif, ind_sample$y_off_5_dif, alternative ="two.sided")
+    c_data$con5_off[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    temp <- t.test(ind_sample$y_auto_1_dif, ind_sample$y_auto_5_dif, alternative ="less")
+    c_data$con5_auto[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_imp_1_dif, ind_sample$y_imp_5_dif, alternative ="two.sided")
+    c_data$con5_imp[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    #######
+    # Condition Six
+    #######
+    
+    temp <- t.test(ind_sample$y_mig_1_dif, ind_sample$y_mig_6_dif, alternative ="two.sided")
+    c_data$con6_mig[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    temp <- t.test(ind_sample$y_off_1_dif, ind_sample$y_off_6_dif, alternative ="greater")
+    c_data$con6_off[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_auto_1_dif, ind_sample$y_auto_6_dif, alternative ="less")
+    c_data$con6_auto[c] <- ifelse(temp$p.value<.05,1,0)
+    
+    temp <- t.test(ind_sample$y_imp_1_dif, ind_sample$y_imp_6_dif, alternative ="two.sided")
+    c_data$con6_imp[c] <- ifelse(temp$p.value>.05,1,0)
+    
+    
+    c_data$sample_size[c] <- sample_size
+    c_data$correlation[c] <- cor_temp
+    c_data$beta1[c] <- beta1_temp
+    c_data$beta2[c] <- beta2_temp
+    c_data$beta3[c] <- beta3_temp
+    c_data$beta3[c] <- beta3_temp
+  
+
+      }
+
+
+
+    if(a==1){b_data <- c_data}else{
+      b_data <- rbind(b_data, c_data)}
+
+
+
+
+
+
+      print(paste(a,"/", nrow(permutations)))
+  }
+  
+  
+  return(b_data)
+}
+
+
+# 
+# mc_data <- power_mc(b1_vector = b1_vector,
+#                     b2_vector = b2_vector,
+#                     b3_vector = b3_vector,
+#                     cor_vector = cor_vector,
+#                     number_of_samples = 100,
+#                     input_sample_size_vector=input_sample_size_vector)
+# 
+# 
+# 
+
+
+
+
+power_mc_hypo <- function(b1_vector, b2_vector, b3_vector,  cor_vector, number_of_samples, input_sample_size_vector, treatment_weight){
+  
+
+  
+  permutations <- expand.grid(b1_vector, b2_vector, b3_vector,
+                              input_sample_size_vector, cor_vector, treatment_weight)
+  
+  
+  permutations <- dplyr::rename(permutations, beta1=Var1, beta2=Var2, beta3=Var3,
+                                sample_size=Var4, cor=Var5, treatment_weight=Var6)
+  
+  permutations$treatment_weight <- as.list(permutations$treatment_weight)
+  
+  startTimeTotal <- Sys.time()
+  for(a in 1:nrow(permutations)){
+    cor_temp <- permutations$cor[a]
+    beta1_temp <- permutations$beta1[a]
+    beta2_temp <- permutations$beta2[a]
+    beta3_temp <- permutations$beta3[a]
+    sample_size <- permutations$sample_size[a]
+    treatment_weight_temp <- permutations$treatment_weight[[a]]
+    
+    
+    
+    startTime <- Sys.time() 
+    
+    
+    
+    c_data <-as.data.frame(matrix(data=NA, 
+                                  nrow=(number_of_samples),
+                                  ncol=12))
+    
+    
+    c_data <- rename(c_data, 
+                     H1_agg = V1,
+                     H2_agg =V2,
+                     H3_agg = V3,
+                     H4_agg=V4,
+                     H5_agg=V5,
+                     H6_agg=V6,
+                     sample_size=V7,
+                     correlation=V8,
+                     beta1=V9,
+                     beta2=V10,
+                     beta3=V11,
+                     treatment_weight=V12
+    )
+    
+    
+    for(c in 1:number_of_samples){
+      
+      ind_sample <-as.data.frame(matrix(data=NA, 
+                                        nrow=(sample_size),
+                                        ncol=29))
+      
+      
+      ind_sample <- rename(ind_sample,
+                           y_mig_b=V1,
+                           y_imp_b=V2,
+                           y_auto_b=V3,
+                           y_off_b=V4,
+                           y_mig_1=V5,
+                           y_imp_1=V6,
+                           y_auto_1=V7,
+                           y_off_1=V8,
+                           y_mig_2=V9,
+                           y_imp_2=V10,
+                           y_auto_2=V11,
+                           y_off_2=V12,
+                           y_mig_3=V13,
+                           y_imp_3=V14,
+                           y_auto_3=V15,
+                           y_off_3=V16,
+                           y_mig_4=V17,
+                           y_imp_4=V18,
+                           y_auto_4=V19,
+                           y_off_4=V20,
+                           y_mig_5=V21,
+                           y_imp_5=V22,
+                           y_auto_5=V23,
+                           y_off_5=V24,
+                           y_mig_6=V25,
+                           y_imp_6=V26,
+                           y_auto_6=V27,
+                           y_off_6=V28,
+                           treatment=V29
+                           )
+      
+      
+      
+      treatments <- c("C1","C2","C3","C4","C5","C6")
+      
+      ind_sample$treatment <- sample(treatments, sample_size, replace=TRUE,
+                                     prob=treatment_weight_temp)
+      ind_sample$y_mig_b <- rnorm(sample_size,0,1)
+      ind_sample$y_imp_b <- rnorm(sample_size,0,1)
+      ind_sample$y_auto_b <- rnorm(sample_size,0,1)
+      ind_sample$y_off_b <- rnorm(sample_size,0,1)
+      
+      
+      
+      
+      ### Condition One (Control, Control)
+      ind_sample$y_mig_1 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_mig_1_dif <- ind_sample$y_mig_1 - ind_sample$y_mig_b
+      ind_sample$y_mig_1_dif <- ifelse(ind_sample$treatment=="C1",
+                                       ind_sample$y_mig_1_dif,
+                                       NA)
+      
+      
+      ind_sample$y_auto_1 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_auto_1_dif <- ind_sample$y_auto_1 - ind_sample$y_auto_b
+      ind_sample$y_auto_1_dif <- ifelse(ind_sample$treatment=="C1",
+                                        ind_sample$y_auto_1_dif,
+                                        NA)
+      
+      ind_sample$y_imp_1 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_imp_1_dif <- ind_sample$y_imp_1 - ind_sample$y_imp_b
+      ind_sample$y_imp_1_dif <- ifelse(ind_sample$treatment=="C1",
+                                       ind_sample$y_imp_1_dif,
+                                       NA)
+      
+      ind_sample$y_off_1 <-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_off_1_dif <- ind_sample$y_off_1 - ind_sample$y_off_b
+      ind_sample$y_off_1_dif <- ifelse(ind_sample$treatment=="C1",
+                                       ind_sample$y_off_1_dif,
+                                       NA)
+      
+      
+      
+      ### Condition Two  (Control, Offshore)
+      ind_sample$y_mig_2 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_mig_2_dif <- ind_sample$y_mig_2 - ind_sample$y_mig_b
+      ind_sample$y_mig_2_dif <- ifelse(ind_sample$treatment=="C2",
+                                       ind_sample$y_mig_2_dif,
+                                       NA)
+      
+      ind_sample$y_auto_2 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_auto_2_dif <- ind_sample$y_auto_2 - ind_sample$y_auto_b
+      ind_sample$y_auto_2_dif <- ifelse(ind_sample$treatment=="C2",
+                                        ind_sample$y_auto_2_dif,
+                                        NA)
+      
+      ind_sample$y_imp_2 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_imp_2_dif <- ind_sample$y_imp_2 - ind_sample$y_imp_b
+      ind_sample$y_imp_2_dif <- ifelse(ind_sample$treatment=="C2",
+                                       ind_sample$y_imp_2_dif,
+                                       NA)
+      
+      ind_sample$y_off_2 <-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp - 1* beta3_temp
+      ind_sample$y_off_2_dif <- ind_sample$y_off_2 - ind_sample$y_off_b
+      ind_sample$y_off_2_dif <- ifelse(ind_sample$treatment=="C2",
+                                       ind_sample$y_off_2_dif,
+                                       NA)
+      
+      
+      
+      
+      ### Condition Three  (General, Control)
+      ind_sample$y_mig_3 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+      ind_sample$y_mig_3_dif <- ind_sample$y_mig_3 - ind_sample$y_mig_b
+      ind_sample$y_mig_3_dif <- ifelse(ind_sample$treatment=="C3",
+                                       ind_sample$y_mig_3_dif,
+                                       NA)
+      
+      ind_sample$y_auto_3 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+      ind_sample$y_auto_3_dif <- ind_sample$y_auto_3 - ind_sample$y_auto_b
+      ind_sample$y_auto_3_dif <- ifelse(ind_sample$treatment=="C3",
+                                        ind_sample$y_auto_3_dif,
+                                        NA)
+      
+      ind_sample$y_imp_3 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+      ind_sample$y_imp_3_dif <- ind_sample$y_imp_3 - ind_sample$y_imp_b
+      ind_sample$y_imp_3_dif <- ifelse(ind_sample$treatment=="C3",
+                                       ind_sample$y_imp_3_dif,
+                                       NA)
+      
+      ind_sample$y_off_3<-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+      ind_sample$y_off_3_dif <- ind_sample$y_off_3 - ind_sample$y_off_b
+      ind_sample$y_off_3_dif <- ifelse(ind_sample$treatment=="C3",
+                                       ind_sample$y_off_3_dif,
+                                       NA)
+      
+      
+      
+      
+      ### Condition Four  (General, Offshore)
+      
+      ind_sample$y_mig_4 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp +.2
+      ind_sample$y_mig_4_dif <- ind_sample$y_mig_4 - ind_sample$y_mig_b
+      ind_sample$y_mig_4_dif <- ifelse(ind_sample$treatment=="C4",
+                                       ind_sample$y_mig_4_dif,
+                                       NA)
+      
+      ind_sample$y_auto_4 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+      ind_sample$y_auto_4_dif <- ind_sample$y_auto_4 - ind_sample$y_auto_b
+      ind_sample$y_auto_4_dif <- ifelse(ind_sample$treatment=="C4",
+                                        ind_sample$y_auto_4_dif,
+                                        NA)
+      
+      ind_sample$y_imp_4 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +1*beta2_temp + 0* beta3_temp
+      ind_sample$y_imp_4_dif <- ind_sample$y_imp_4 - ind_sample$y_imp_b
+      ind_sample$y_imp_4_dif <- ifelse(ind_sample$treatment=="C4",
+                                       ind_sample$y_imp_4_dif,
+                                       NA)
+      
+      ind_sample$y_off_4<-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp - 1* beta3_temp
+      ind_sample$y_off_4_dif <- ind_sample$y_off_4 - ind_sample$y_off_b
+      ind_sample$y_off_4_dif <- ifelse(ind_sample$treatment=="C4",
+                                       ind_sample$y_off_4_dif,
+                                       NA)
+      
+      
+      ### Condition Five  (Auto, Control)
+      
+      ind_sample$y_mig_5 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_mig_5_dif <- ind_sample$y_mig_5 - ind_sample$y_mig_b
+      ind_sample$y_mig_5_dif <- ifelse(ind_sample$treatment=="C5",
+                                       ind_sample$y_mig_5_dif,
+                                       NA)
+      
+      ind_sample$y_auto_5 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 1*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_auto_5_dif <- ind_sample$y_auto_5 - ind_sample$y_auto_b
+      ind_sample$y_auto_5_dif <- ifelse(ind_sample$treatment=="C5",
+                                        ind_sample$y_auto_5_dif,
+                                        NA)
+      
+      ind_sample$y_imp_5 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_imp_5_dif <- ind_sample$y_imp_5 - ind_sample$y_imp_b
+      ind_sample$y_imp_5_dif <- ifelse(ind_sample$treatment=="C5",
+                                       ind_sample$y_imp_5_dif,
+                                       NA)
+      
+      ind_sample$y_off_5<-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_off_5_dif <- ind_sample$y_off_5 - ind_sample$y_off_b
+      ind_sample$y_off_5_dif <- ifelse(ind_sample$treatment=="C5",
+                                       ind_sample$y_off_5_dif,
+                                       NA)
+      
+      
+      
+      ### Condition Six  (Auto, Offshore)
+      
+      ind_sample$y_mig_6 <-rnorm_pre(ind_sample$y_mig_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_mig_6_dif <- ind_sample$y_mig_6 - ind_sample$y_mig_b
+      ind_sample$y_mig_6_dif <- ifelse(ind_sample$treatment=="C6",
+                                       ind_sample$y_mig_6_dif,
+                                       NA)
+      
+      ind_sample$y_auto_6 <-rnorm_pre(ind_sample$y_auto_b, r=cor_temp) + 1*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_auto_6_dif <- ind_sample$y_auto_6 - ind_sample$y_auto_b
+      ind_sample$y_auto_6_dif <- ifelse(ind_sample$treatment=="C6",
+                                        ind_sample$y_auto_6_dif,
+                                        NA)
+      
+      ind_sample$y_imp_6 <-rnorm_pre(ind_sample$y_imp_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp + 0* beta3_temp
+      ind_sample$y_imp_6_dif <- ind_sample$y_imp_6 - ind_sample$y_imp_b
+      ind_sample$y_imp_6_dif <- ifelse(ind_sample$treatment=="C6",
+                                       ind_sample$y_imp_6_dif,
+                                       NA)
+      
+      ind_sample$y_off_6<-rnorm_pre(ind_sample$y_off_b, r=cor_temp) + 0*beta1_temp +0*beta2_temp - 1* beta3_temp
+      ind_sample$y_off_6_dif <- ind_sample$y_off_6 - ind_sample$y_off_b
+      ind_sample$y_off_6_dif <- ifelse(ind_sample$treatment=="C6",
+                                       ind_sample$y_off_6_dif,
+                                       NA)
+      
+      
+      
+      
+      
+      #######
+      # Hypothesis 1
+      #######
+      
+      
+      ind_sample$heigtened_specific_agg <- ifelse(is.na(ind_sample$y_auto_6_dif),
+                                                  ind_sample$y_auto_5_dif,
+                                                  ind_sample$y_auto_6_dif)
+      
+      
+      ind_sample$heigtened_specific_agg_con <- ifelse(is.na(ind_sample$y_auto_1_dif),
+                                                  ind_sample$y_auto_2_dif,
+                                                  ind_sample$y_auto_1_dif)
+    
+      temp <- t.test(ind_sample$heigtened_specific_agg_con,
+                     ind_sample$heigtened_specific_agg,
+                     alternative ="less")
+      
+      c_data$H1_agg[c] <- ifelse(temp$p.value<.05,1,0)
+      
+      ######
+      # Hypothesis 2
+      #######
+      
+      
+      ind_sample$lowered_specific_agg <- ifelse(is.na(ind_sample$y_off_6_dif),
+                                                  ind_sample$y_off_2_dif,
+                                                  ind_sample$y_off_6_dif)
+      
+      
+      ind_sample$lowered_specific_agg_con <- ifelse(is.na(ind_sample$y_off_1_dif),
+                                                      ind_sample$y_off_5_dif,
+                                                      ind_sample$y_off_1_dif)
+      
+      temp <- t.test(ind_sample$lowered_specific_agg_con,
+                     ind_sample$lowered_specific_agg,
+                     alternative ="greater")
+      
+      c_data$H2_agg[c] <- ifelse(temp$p.value<.05,1,0)
+      
+      
+      #######
+      # Hypothesis 3
+      #######
+      h3_samp <-ind_sample %>% dplyr::select(y_mig_1_dif, y_mig_4_dif, 
+                       y_off_1_dif, y_off_4_dif,y_auto_1_dif, y_auto_4_dif,
+                       y_imp_1_dif, y_imp_4_dif)
+      
+   
+      
+      
+      h3_samp$condition <- ifelse(!is.na(h3_samp$y_mig_4_dif),
+                                  "Treatment",
+                                  NA)
+      
+      h3_samp$condition <- ifelse(!is.na(h3_samp$y_mig_1_dif),
+                                  "Control",
+                                  h3_samp$condition)
+      
+      h3_samp <- h3_samp %>% pivot_longer(cols=c(y_mig_1_dif, y_mig_4_dif, 
+                                                 y_off_1_dif, y_off_4_dif,y_auto_1_dif, y_auto_4_dif,
+                                                 y_imp_1_dif, y_imp_4_dif))
+      
+      h3_samp_con <- subset(h3_samp, h3_samp$condition=="Control")
+      h3_samp_treat <- subset(h3_samp, h3_samp$condition=="Treatment")
+      
+      
+      
+      temp <- t.test(h3_samp_con$value, h3_samp_treat$value, alternative ="less")
+      c_data$H3_agg[c] <- ifelse(temp$p.value<.05,1,0)
+      
+      
+  
+      #######
+      # Hypothesis 4
+      #######
+      temp <- t.test(ind_sample$y_off_3_dif, ind_sample$y_off_4_dif, alternative ="greater")
+      c_data$H4_agg[c] <- ifelse(temp$p.value<.05,1,0)
+      
+      #######
+      # Hypothesis 5
+      #######
+      
+      h5_samp <- ind_sample %>% dplyr::select(y_auto_5_dif, y_auto_6_dif,
+                                              y_auto_3_dif, y_auto_4_dif)
+      
+      
+      
+      h5_samp$condition <- ifelse(is.na(h5_samp$y_auto_5_dif) & is.na(h5_samp$y_auto_6_dif) ,
+                                  "Control",
+                                  "Treatment")
+      
+
+      
+      h5_samp <- h5_samp %>% pivot_longer(cols=c(y_auto_5_dif, y_auto_6_dif,
+                                                 y_auto_3_dif, y_auto_4_dif))
+      
+      
+      
+      h5_samp_con <- subset(h5_samp, h5_samp$condition=="Control")
+      h5_samp_treat <- subset(h5_samp, h5_samp$condition=="Treatment")
+      
+      
+      
+      temp <- t.test(h5_samp_con$value, h5_samp_treat$value, alternative ="less")
+      c_data$H5_agg[c] <- ifelse(temp$p.value<.05,1,0)
+      
+      #######
+      # Hypothesis 6
+      #######
+      h6_samp <-ind_sample %>% dplyr::select(y_off_4_dif, y_auto_4_dif,
+                                             y_mig_4_dif, y_imp_4_dif)
+      
+      h6_samp <- h6_samp %>%  pivot_longer(cols=c(y_off_4_dif, y_auto_4_dif,
+                                                  y_mig_4_dif, y_imp_4_dif))
+      
+      h6_samp$condition <- ifelse(h6_samp$name=="y_mig_4_dif",
+                                  "Treatment",
+                                  "Control")
+      
+      h6_samp_con <- subset(h6_samp, h6_samp$condition=="Control")
+      h6_samp_treat <- subset(h6_samp, h6_samp$condition=="Treatment")
+      
+      temp <- t.test(h6_samp_con$value, h6_samp_treat$value, alternative ="less")
+      c_data$H6_agg[c] <- ifelse(temp$p.value<.05,1,0)
+      
+      
+      c_data$sample_size[c] <- sample_size
+      c_data$correlation[c] <- cor_temp
+      c_data$beta1[c] <- beta1_temp
+      c_data$beta2[c] <- beta2_temp
+      c_data$beta3[c] <- beta3_temp
+      c_data$treatment_weight[c] <- paste(unlist(treatment_weight_temp), collapse=' ')
+      
+      
+    }
+    
+    
+    
+    if(a==1){b_data <- c_data}else{
+      b_data <- rbind(b_data, c_data)}
+    
+    
+  
+    endTime <- Sys.time() 
+    
+
+    
+    cat(paste0("Loop ", a,"/", nrow(permutations), "\n",
+              "Loop Duration: ", round(as.numeric(endTime-startTime),2), " seconds"),"\n",
+              "Total Duration: ", dhms(as.numeric(endTime)-as.numeric(startTimeTotal)),"\n","###############","\n")
+  }
+  
+  
+  return(b_data)
+}
+
+mc_data <- power_mc_hypo(b1_vector = b1_vector,
+                    b2_vector = b2_vector,
+                    b3_vector = b3_vector,
+                    cor_vector = cor_vector,
+                    number_of_samples = 100,
+                    treatment_weight=treatment_weight,
+                    input_sample_size_vector=input_sample_size_vector)
+
+
+
+write_dta(mc_data, 
+          "update_power_analysis_results.dta")
+
+
+
+
+ 
+
+
+
+
+</code></pre>
+
+</body>
+</html>
+```
+
+
+```{=html}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download .dta File</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        .download-button {
+            background-color: #4CAF50; /* Green */
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Download Experiment Power Analysis .dta file</h1>
+<a href="DTA_Files/update_power_analysis_results.dta" download="update_power_analysis_results.dta" class="download-button">Download</a>
+
+</body>
+</html>
 ```

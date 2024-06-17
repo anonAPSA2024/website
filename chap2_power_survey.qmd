@@ -1,5 +1,5 @@
 ---
-title: Anonymized Dissertation Grant
+title: Power Analysis for the Experiment
 published-title: 
 engine: knitr
 freeze: false
@@ -33,6 +33,9 @@ cv:
 }
 ```
 
+## Experiment Power Analysis Code
+
+
 ```{=html}
 <head>
     <meta charset="UTF-8">
@@ -51,6 +54,7 @@ cv:
         code {
             display: block;
             white-space: pre;
+            text-align: left;
         }
     </style>
 </head>
@@ -101,26 +105,28 @@ dhms <- function(t){
 }
 
 
-# Informed Direct Effects
+# Objective Risk
 b1_vector <- c(.2, .5)
 
-#Uninformed Spillover Effects
-b2_vector <- c(.5,.8)
+# Perceived Risk
+b2_vector <- c(.2,.5)
 
-# Informed Direct Effects
-b3_vector <- c(.2)
+# Spillover
+b3_vector <- c(.2, .5)
 
-#Uninformed Spillover Effects
-b4_vector <- c(.2, .5)
+# Certainty
+b4_vector <- c(.2)
 
-# Informed Direct Effects
-b5_vector <- c(.2, .5)
+#Certainty*Perception
+#More certainty, stronger effect of perceived risks
+b5_vector <- c(.2,.5)
 
-#Uninformed Spillover Effects
+#Certainty*Spillover
+# more certainty, less spillover
 b6_vector <- c(-.2, -.5)
 
-# Informed Direct Effects
-b7_vector <- c(.2)
+# Correlation
+b7_vector <- c(.5)
 
 
 
@@ -129,7 +135,7 @@ b7_vector <- c(.2)
 
 
 # Sample Size Vector
-input_sample_size_vector <- seq(from=1000, to=2000, by=200)
+input_sample_size_vector <- seq(from=250, to=4500, by=250)
 
 
 
@@ -138,30 +144,29 @@ c <- 1
 number_of_samples <- 100
 
 
-power_mc_hypo <- function(b1_vector, b2_vector, b3_vector, b4_vector, b5_vector,
-b6_vector,b7_vector,input_sample_size_vector, number_of_samples){
+power_mc_hypo <- function(b1_vector, b2_vector, b3_vector, b4_vector, b5_vector, b6_vector,
+                          b7_vector,input_sample_size_vector, number_of_samples){
   
   
   
-  permutations <- expand.grid(b1_vector, b2_vector, b3_vector, b4_vector, b5_vector, 
-  b6_vector,b7_vector, input_sample_size_vector)
+  permutations <- expand.grid(b1_vector, b2_vector, b3_vector, b4_vector, b5_vector, b6_vector,
+                              b7_vector, input_sample_size_vector)
   
   
   permutations <- dplyr::rename(permutations, beta1=Var1, beta2=Var2, beta3=Var3,
-                                beta4=Var4, beta5=Var5, beta6=Var6, beta7=Var7,
-                                sample_size=Var8)
+                                beta4=Var4, beta5=Var5, beta6=Var6, beta7=Var7, sample_size=Var8)
   
   startTimeTotal <- Sys.time()
   for(a in 1:nrow(permutations)){
     beta1_temp <- permutations$beta1[a]
     beta2_temp <- permutations$beta2[a]
-    beta3_temp <- permutations$beta3[a]
+     beta3_temp <- permutations$beta3[a]
     beta4_temp <- permutations$beta4[a]
     beta5_temp <- permutations$beta5[a]
     beta6_temp <- permutations$beta6[a]
     beta7_temp <- permutations$beta7[a]
 
-    sample_size <- permutations$sample_size[a]
+     sample_size <- permutations$sample_size[a]
 
     
     
@@ -221,24 +226,30 @@ b6_vector,b7_vector,input_sample_size_vector, number_of_samples){
                                         ncol=1))
       
       
+      ind_sample$id <- seq(from=1, to=sample_size, by=1)
       
-      county_fe <- seq(from=-1, to=1, length.out=254)
+      
+      county_fe <- seq(from=-1, to=1, length.out=3234)
       state <- seq(from=1, to=50, by=1 )
+      occ <- seq(from=0, to=1, length.out=426)
 
       ind_sample$county_fe <- sample(county_fe, sample_size, replace=TRUE)
       ind_sample$state <- sample(state, sample_size, replace=TRUE)
+      ind_sample$occ <- sample(occ, sample_size, replace=TRUE)
       
       ind_sample$off_ind_con <- rtruncnorm(sample_size,0,1,.5,.25)
       ind_sample$mig_ind_con <-rtruncnorm(sample_size,0,1,.5,.25)
       ind_sample$auto_ind_con <-rtruncnorm(sample_size,0,1,.5,.25)
       ind_sample$imp_ind_con <-rtruncnorm(sample_size,0,1,.5,.25)
       
+   
       
 
-      ind_sample$off_ind <- ntile(ind_sample$off_ind_con, 7)
-      ind_sample$mig_ind <- ntile(ind_sample$mig_ind_con, 7)
-      ind_sample$auto_ind <- ntile(ind_sample$auto_ind_con, 7)
-      ind_sample$imp_ind <- ntile(ind_sample$imp_ind_con, 7)
+
+      ind_sample$off_ind <- ind_sample$off_ind_con
+      ind_sample$mig_ind <- ind_sample$mig_ind_con
+      ind_sample$auto_ind <- ind_sample$auto_ind_con
+      ind_sample$imp_ind <- ind_sample$imp_ind_con
 
       
       state_risks <- ind_sample %>%
@@ -256,63 +267,81 @@ b6_vector,b7_vector,input_sample_size_vector, number_of_samples){
       ind_sample$union <- rbinom(sample_size, size=1, prob=.1)
       ind_sample$party <- rbinom(sample_size, size=1, prob=.5)
       
-      ind_sample$cor_temp <- rtruncnorm(sample_size,0,1) + 
-      beta7_temp*ind_sample$union
+      ind_sample$cor_temp <- .2 + beta7_temp*ind_sample$union
       
-      ind_sample$cor_temp <- ifelse(ind_sample$cor_temp>=.95, .95, 
-      ind_sample$cor_temp)
+      union <- subset(ind_sample, ind_sample$union==1)
+      nonunion <- subset(ind_sample, ind_sample$union==0)
+      
+      union$off_ind_pec <- rnorm_pre(union$off_ind, mu=.5, sd=.25, r=.5)
+      union$mig_ind_pec <- rnorm_pre(union$mig_ind, mu=.5, sd=.25, r=.5)
+      union$auto_ind_pec <- rnorm_pre(union$auto_ind, mu=.5, sd=.25, r=.5)
+      union$imp_ind_pec <- rnorm_pre(union$imp_ind, mu=.5, sd=.25, r=.5)
     
+      union$mig_acc <- cor(union$mig_ind, union$mig_ind_pec)
+      union$off_acc <- cor(union$off_ind, union$off_ind_pec)
+      union$auto_acc <-cor(union$auto_ind, union$auto_ind_pec)
+      union$imp_acc <- cor(union$imp_ind, union$imp_ind_pec)
       
-      ind_sample$off_ind_pec_con <-  rnorm_pre(ind_sample$off_ind, 
-      r=ind_sample$cor_temp) 
+      nonunion$off_ind_pec <- rnorm_pre(nonunion$off_ind, mu=.5, sd=.25, r=.2)
+      nonunion$mig_ind_pec <- rnorm_pre(nonunion$mig_ind, mu=.5, sd=.25, r=.2)
+      nonunion$auto_ind_pec <- rnorm_pre(nonunion$auto_ind, mu=.5, sd=.25, r=.2)
+      nonunion$imp_ind_pec <- rnorm_pre(nonunion$imp_ind, mu=.5, sd=.25, r=.2)
       
-      ind_sample$mig_ind_pec_con <- rnorm_pre(ind_sample$mig_ind,
-      r=ind_sample$cor_temp) 
       
-      ind_sample$auto_ind_pec_con <- rnorm_pre(ind_sample$auto_ind,
-      r=ind_sample$cor_temp) 
+      nonunion$mig_acc <- cor(nonunion$mig_ind, nonunion$mig_ind_pec)
+      nonunion$off_acc <- cor(nonunion$off_ind, nonunion$off_ind_pec)
+      nonunion$auto_acc <-cor(nonunion$auto_ind, nonunion$auto_ind_pec)
+      nonunion$imp_acc <- cor(nonunion$imp_ind, nonunion$imp_ind_pec)
       
-      ind_sample$imp_ind_pec_con <- rnorm_pre(ind_sample$imp_ind,
-      r=ind_sample$cor_temp)  
+      ind_sample <- rbind(union, nonunion)
       
-
-      ind_sample$off_ind_pec <- ntile(ind_sample$off_ind_pec_con, 7)
-      ind_sample$mig_ind_pec <- ntile(ind_sample$mig_ind_pec_con, 7)
-      ind_sample$auto_ind_pec <- ntile(ind_sample$auto_ind_pec_con, 7)
-      ind_sample$imp_ind_pec <- ntile(ind_sample$imp_ind_pec_con, 7)
-
       
-      ind_sample$off_ind_cer <- rtruncnorm(sample_size,0,1,.5,.25)
-      ind_sample$mig_ind_cer <-rtruncnorm(sample_size,0,1,.5,.25)
-      ind_sample$auto_ind_cer <-rtruncnorm(sample_size,0,1,.5,.25)
-      ind_sample$imp_ind_cer <-rtruncnorm(sample_size,0,1,.5,.25)
+    # occ_sample <- ind_sample %>%
+    #     group_by(occ) %>%
+    #     dplyr::summarise(mig_ind2= mean(mig_ind_pec),
+    #                      off_ind2= mean(off_ind_pec),
+    #                      auto_ind2= mean(auto_ind_pec),
+    #                      imp_ind2= mean(imp_ind_pec),
+    #     )
+    #   
+    # 
+    # ind_sample$mig_acc2 <- abs(ind_sample$mig_ind_pec - ind_sample$mig_ind2)
+    # ind_sample$mig_acc2 <- abs(ind_sample$mig_ind_pec - ind_sample$mig_ind2)
+    # ind_sample$mig_acc2 <- abs(ind_sample$mig_ind_pec - ind_sample$mig_ind2)
+    # ind_sample$mig_acc2 <- abs(ind_sample$mig_ind_pec - ind_sample$mig_ind2)
+    
+  #  ind_sample <- merge(ind_sample, occ_sample, by=c("occ"))
+      
+      
+      ind_sample$off_ind_cer <- rbinom(sample_size, size=1, prob=.5)
+      
+      ind_sample$mig_ind_cer <-rbinom(sample_size, size=1, prob=.5)
+      ind_sample$auto_ind_cer <-rbinom(sample_size, size=1, prob=.5)
+      ind_sample$imp_ind_cer <-rbinom(sample_size, size=1, prob=.5)
       
       # 
-      ind_sample$off_ind_cer <- ntile(ind_sample$off_ind_cer, 7)
-      ind_sample$mig_ind_cer <- ntile(ind_sample$mig_ind_cer, 7)
-      ind_sample$auto_ind_cer <- ntile(ind_sample$auto_ind_cer, 7)
-      ind_sample$imp_ind_cer <- ntile(ind_sample$imp_ind_cer, 7)
+      # ind_sample$off_ind_cer <- ntile(ind_sample$off_ind_cer, 7)
+      # ind_sample$mig_ind_cer <- ntile(ind_sample$mig_ind_cer, 7)
+      # ind_sample$auto_ind_cer <- ntile(ind_sample$auto_ind_cer, 7)
+      # ind_sample$imp_ind_cer <- ntile(ind_sample$imp_ind_cer, 7)
       # 
-      ind_sample$not_off_ind <- ind_sample$mig_ind + ind_sample$auto_ind + 
-      ind_sample$imp_ind
-      
-      ind_sample$not_mig_ind <- ind_sample$off_ind + ind_sample$auto_ind + 
-      ind_sample$imp_ind
-      
-      ind_sample$not_auto_ind <- ind_sample$mig_ind + ind_sample$off_ind + 
-      ind_sample$imp_ind
-      
-      ind_sample$not_imp_ind <- ind_sample$mig_ind + ind_sample$auto_ind +
-      ind_sample$off_ind
+      ind_sample$not_off_ind <- ind_sample$mig_ind + ind_sample$auto_ind + ind_sample$imp_ind
+      ind_sample$not_mig_ind <- ind_sample$off_ind + ind_sample$auto_ind + ind_sample$imp_ind
+      ind_sample$not_auto_ind <- ind_sample$mig_ind + ind_sample$off_ind + ind_sample$imp_ind
+      ind_sample$not_imp_ind <- ind_sample$mig_ind + ind_sample$auto_ind + ind_sample$off_ind
       
       
-      ind_sample$mig_acc <- (7-abs(ind_sample$mig_ind- ind_sample$mig_ind_pec))
-      ind_sample$off_acc <- (7-abs(ind_sample$off_ind- ind_sample$off_ind_pec))
-      ind_sample$auto_acc <- (7-abs(ind_sample$auto_ind- ind_sample$auto_ind_pec))
-      ind_sample$imp_acc <- (7-abs(ind_sample$imp_ind- ind_sample$imp_ind_pec))
+      # ind_sample$not_off_ind <- ntile(ind_sample$not_off_ind, 7)
+      # ind_sample$not_mig_ind <- ntile(ind_sample$not_mig_ind, 7)
+      # ind_sample$not_auto_ind <- ntile(ind_sample$not_auto_ind, 7)
+      # ind_sample$not_imp_ind <- ntile(ind_sample$not_imp_ind, 7)
+      
+      
+      
+ 
   
 
-      ind_sample$error <- rnorm(sample_size,0,1)
+      ind_sample$error <- rnorm(sample_size,0,.5)
       
     
       
@@ -321,11 +350,22 @@ b6_vector,b7_vector,input_sample_size_vector, number_of_samples){
       ind_sample$mig_opp_og <- ind_sample$county_fe+ #County Fixed Effects
                             beta1_temp*ind_sample$mig_ind +
                             beta2_temp*ind_sample$mig_ind_pec +
-                          .5*ind_sample$not_mig_ind +
+                          beta3_temp*ind_sample$not_mig_ind +
                             beta4_temp*ind_sample$mig_ind_cer+
                             beta5_temp*(ind_sample$mig_ind_cer*ind_sample$mig_ind_pec)+
                             beta6_temp*(ind_sample$mig_ind_cer*ind_sample$not_mig_ind)+
                              .2*ind_sample$state_mig + ind_sample$error
+      
+      
+      ind_sample$mig_opp_og_higher <- ind_sample$county_fe+ #County Fixed Effects
+        beta1_temp*ind_sample$mig_ind +
+        beta2_temp*ind_sample$mig_ind_pec +
+        (beta3_temp+.2)*ind_sample$not_mig_ind +
+        beta4_temp*ind_sample$mig_ind_cer+
+        beta5_temp*(ind_sample$mig_ind_cer*ind_sample$mig_ind_pec)+
+        beta6_temp*(ind_sample$mig_ind_cer*ind_sample$not_mig_ind)+
+        .2*ind_sample$state_mig + ind_sample$error
+      
       
       
       
@@ -367,36 +407,33 @@ b6_vector,b7_vector,input_sample_size_vector, number_of_samples){
       ind_sample$off_opp <- ntile(ind_sample$off_opp_og, 7)
       ind_sample$auto_opp <- ntile(ind_sample$auto_opp_og, 7)
       ind_sample$imp_opp <-  ntile(ind_sample$imp_opp_og, 7)
-      
-      
-      
-      
+      ind_sample$mig_opp_higher <- ntile(ind_sample$mig_opp_og_higher, 7)
+
                  
       
       #########################
       # Hypothesis 1
       #########################
+      
+      # Workers who have greater occupational susceptibility towards an economic
+     # process should oppose it more than workers with lower susceptibility.
 
-      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
-      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
       c_data$H1_agg_mig[c] <-ifelse(temp$coefficients[2,4]<.05&
                                 temp$coefficients[2,1]>0,1,0)
       
       
-      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
-      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
       c_data$H1_agg_off[c] <-ifelse(temp$coefficients[2,4]<.05&
                                       temp$coefficients[2,1]>0,1,0)
       
       
-      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
-      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
       c_data$H1_agg_auto[c] <-ifelse(temp$coefficients[2,4]<.05&
                                       temp$coefficients[2,1]>0,1,0)
       
       
-      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
-      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
       c_data$H1_agg_imp[c] <-ifelse(temp$coefficients[2,4]<.05&
                                       temp$coefficients[2,1]>0,1,0)
       
@@ -404,140 +441,176 @@ b6_vector,b7_vector,input_sample_size_vector, number_of_samples){
       
       #########################
       # Hypothesis 2
+      #
+      # Workers who have greater perceived susceptibility towards an economic process
+      # should oppose it more than workers with lower susceptibility.
       #########################
-      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
-      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
       c_data$H2_agg_mig[c] <-ifelse(temp$coefficients[3,4]<.05&
-                              temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+                                      temp$coefficients[3,1]>0,1,0)
       
       
-      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
-      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
       c_data$H2_agg_off[c] <-ifelse(temp$coefficients[3,4]<.05&
-                             temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+                                      temp$coefficients[3,1]>0,1,0)
       
       
-    
-      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
-      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
       c_data$H2_agg_auto[c] <-ifelse(temp$coefficients[3,4]<.05&
-                             temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+                                      temp$coefficients[3,1]>0,1,0)
       
       
-      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
-      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
       c_data$H2_agg_imp[c] <-ifelse(temp$coefficients[3,4]<.05&
-                              temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+                                      temp$coefficients[3,1]>0,1,0)
       
       
       #########################
       # Hypothesis 3
+      #
+      #Perceived susceptibility towards an option should have a greater effect
+      # on policy support than objective susceptibility.
       #########################
-      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
-      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
-      c_data$H3_agg_mig[c] <-ifelse(temp$coefficients[8,4]<.05&
-                                      temp$coefficients[8,1]>0,1,0)
       
       
-      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
-      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
-      c_data$H3_agg_off[c] <-ifelse(temp$coefficients[8,4]<.05&
-                                      temp$coefficients[8,1]>0,1,0)
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      c_data$H3_agg_mig[c] <-ifelse(temp$coefficients[3,4]<.05&
+                                      temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
       
       
-      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
-      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
-      c_data$H3_agg_auto[c] <-ifelse(temp$coefficients[8,4]<.05&
-                                       temp$coefficients[8,1]>0,1,0)
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      c_data$H3_agg_off[c] <-ifelse(temp$coefficients[3,4]<.05&
+                                      temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
       
       
-      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
-      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
-      c_data$H3_agg_imp[c] <-ifelse(temp$coefficients[8,4]<.05&
-                                      temp$coefficients[8,1]>0,1,0)
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      c_data$H3_agg_auto[c] <-ifelse(temp$coefficients[3,4]<.05&
+                                       temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
       
-      #########################
+      
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      c_data$H3_agg_imp[c] <-ifelse(temp$coefficients[3,4]<.05&
+                                      temp$coefficients[3,1]>temp$coefficients[2,1],1,0)
+      
+      
+      
+      
+      
+      ######################
       # Hypothesis 4
-      #########################
-      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
-      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
-      c_data$H4_agg_mig[c] <-ifelse(temp$coefficients[9,4]<.05&
-                                      temp$coefficients[9,1]<0
-                                      ,1,0)
-
-
-      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
-      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
-      c_data$H4_agg_off[c] <-ifelse(temp$coefficients[9,4]<.05&
-                                      temp$coefficients[9,1]<0,1,0)
-
-
-      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
-      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
-      c_data$H4_agg_auto[c] <-ifelse(temp$coefficients[9,4]<.05&
-                                       temp$coefficients[9,1]<0,1,0)
-
-
-      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
-      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
-      c_data$H4_agg_imp[c] <-ifelse(temp$coefficients[9,4]<.05&
-                                      temp$coefficients[9,1]<0,1,0)
+      #
+      # Respondents who are more uncertain about the risks to their occupation 
+      # should be more likely to oppose all options than respondents who are 
+      # certain about their risks.
+      #
+      #######################
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      c_data$H4_agg_mig[c] <-ifelse(temp$coefficients[5,4]<.05&
+                                      temp$coefficients[5,1]>0,1,0)
       
       
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      c_data$H4_agg_off[c] <-ifelse(temp$coefficients[5,4]<.05&
+                                      temp$coefficients[5,1]>0,1,0)
+      
+      
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      c_data$H4_agg_auto[c] <-ifelse(temp$coefficients[5,4]<.05&
+                                       temp$coefficients[5,1]>0,1,0)
+      
+      
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      c_data$H4_agg_imp[c] <-ifelse(temp$coefficients[5,4]<.05&
+                                      temp$coefficients[5,1]>0,1,0)
       
       #########################
       # Hypothesis 5
+      #
+      #Respondents who are more uncertain about the risks to their occupation
+      # should be more likely to oppose migration than other policies. 
       #########################
-      temp_mig <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +
-      not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
-  
+      temp_mig <- summary(lm(mig_opp_higher ~ mig_ind +mig_ind_pec*mig_ind_cer +not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
       
       
-      temp_off <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +
-      not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      
+      temp_off <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      
+      
+      temp_auto <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      
+      
+      
+      temp_imp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      
+      
+      c_data$H5_agg_auto <- ifelse(temp_mig$coefficients[5,1]>temp_auto$coefficients[5,1] &
+                                     temp_mig$coefficients[5,4]<.05,1,0)
+      
+      c_data$H5_agg_imp <- ifelse(temp_mig$coefficients[5,1]>temp_imp$coefficients[5,1] &
+                                    temp_mig$coefficients[5,4]<.05,1,0)
+      
+      c_data$H5_agg_off <- ifelse(temp_mig$coefficients[5,1]>temp_off$coefficients[5,1] &
+                                    temp_mig$coefficients[5,4]<.05,1,0)
+      
+      
+      
+      
 
-      
-      temp_auto <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +
-      not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
-
-      
-      
-      temp_imp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +
-      not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
-   
-      
-      c_data$H5_agg_auto <- ifelse(temp_mig$coefficients[4,1]>
-      temp_auto$coefficients[4,1] &
-                                temp_mig$coefficients[4,4]<.05,1,0)
-      
-      c_data$H5_agg_imp <- ifelse(temp_mig$coefficients[4,1]>
-      temp_imp$coefficients[4,1] &
-                                     temp_mig$coefficients[4,4]<.05,1,0)
-      
-      c_data$H5_agg_off <- ifelse(temp_mig$coefficients[4,1]>
-      temp_off$coefficients[4,1] &
-                                     temp_mig$coefficients[4,4]<.05,1,0)
-      
-      
       
       ###############################
       # Hypothesis 6
+      #
+      # Respondents with greater certainty in their perceived individual risk will oppose
+      # a policy more than a less certain respondent with similar risk
+      #
       ###############################
       
+      
+      
+      temp <- summary(lm(mig_opp ~ mig_ind +mig_ind_pec*mig_ind_cer +not_mig_ind*mig_ind_cer +county_fe + state_mig, data=ind_sample))
+      c_data$H6_agg_mig[c] <-ifelse(temp$coefficients[8,4]<.05&
+                                      temp$coefficients[8,1]>0,1,0)
+      
+      
+      temp <- summary(lm(off_opp ~ off_ind +off_ind_pec*off_ind_cer +not_off_ind*off_ind_cer +county_fe + state_off, data=ind_sample))
+      c_data$H6_agg_off[c] <-ifelse(temp$coefficients[8,4]<.05&
+                                      temp$coefficients[8,1]>0,1,0)
+      
+      
+      temp <- summary(lm(auto_opp ~ auto_ind +auto_ind_pec*auto_ind_cer +not_auto_ind*auto_ind_cer +county_fe + state_auto, data=ind_sample))
+      c_data$H6_agg_auto[c] <-ifelse(temp$coefficients[8,4]<.05&
+                                       temp$coefficients[8,1]>0,1,0)
+      
+      
+      temp <- summary(lm(imp_opp ~ imp_ind +imp_ind_pec*imp_ind_cer +not_imp_ind*imp_ind_cer +county_fe + state_imp, data=ind_sample))
+      c_data$H6_agg_imp[c] <-ifelse(temp$coefficients[8,4]<.05&
+                                      temp$coefficients[8,1]>0,1,0)
+      
+      
+      
+      
+      
+      #############
+      # Hypothesis 7
+      #
+      # Union Members will have more accurate perceptions of their susceptibility 
+      # to these economic processes than non-union members
+      ################
       temp <- summary(lm(mig_acc ~ union, data=ind_sample))
-      c_data$H6_agg_mig[c] <-ifelse(temp$coefficients[2,4]<.05&
+      c_data$H7_agg_mig[c] <-ifelse(temp$coefficients[2,4]<.05&
                                       temp$coefficients[2,1]>0,1,0)
       
       temp <- summary(lm(off_acc ~ union, data=ind_sample))
-      c_data$H6_agg_off[c] <-ifelse(temp$coefficients[2,4]<.05&
+      c_data$H7_agg_off[c] <-ifelse(temp$coefficients[2,4]<.05&
                                       temp$coefficients[2,1]>0,1,0)
       
       temp <- summary(lm(auto_acc ~ union, data=ind_sample))
-      c_data$H6_agg_auto[c] <-ifelse(temp$coefficients[2,4]<.05&
+      c_data$H7_agg_auto[c] <-ifelse(temp$coefficients[2,4]<.05&
                                       temp$coefficients[2,1]>0,1,0)
       
       temp <- summary(lm(imp_acc ~ union, data=ind_sample))
-      c_data$H6_agg_imp[c] <-ifelse(temp$coefficients[2,4]<.05&
+      c_data$H7_agg_imp[c] <-ifelse(temp$coefficients[2,4]<.05&
                                       temp$coefficients[2,1]>0,1,0)
       
       
@@ -575,10 +648,8 @@ b6_vector,b7_vector,input_sample_size_vector, number_of_samples){
     
     
     cat(paste0("Loop ", a,"/", nrow(permutations), "\n",
-               "Loop Duration: ", round(as.numeric(endTime-startTime),2),
-               " seconds"),"\n",
-        "Total Duration: ", dhms(as.numeric(endTime)-as.numeric(startTimeTotal)),
-        "\n","###############","\n")
+               "Loop Duration: ", round(as.numeric(endTime-startTime),2), " seconds"),"\n",
+        "Total Duration: ", dhms(as.numeric(endTime)-as.numeric(startTimeTotal)),"\n","###############","\n")
   }
   
   
@@ -608,12 +679,17 @@ write_dta(mc_data,
 
 
 
+
+
+
 </code></pre>
 
 </body>
 </html>
 ```
 
+
+## Data Download
 
 ```{=html}
 <html lang="en">
@@ -644,9 +720,14 @@ write_dta(mc_data,
 </head>
 <body>
 
-<h1>Download Your .dta File</h1>
-<a href="path/to/yourfile.dta" download="yourfile.dta" class="download-button">Download</a>
+<h1>Download Survey Power Analysis Results .dta file</h1>
+<a href="DTA_Files/update_power_analysis_results.dta" download="survey_power_analysis.dta" class="download-button">Download</a>
 
 </body>
 </html>
 ```
+
+
+
+
+

@@ -1,44 +1,38 @@
 ---
 title: "Overview"
 ---
+## Section B: Experiment Materials
+[Power Analysis R-File](chap2_power_experiment.qmd)
 
-## Previous Rewarded Grants
+[Data Codebook](chap2_experiment_codebook.qmd)
 
-[Anonymized Dissertation Grant Received](chap2_grants.qmd)
+[Anonymized Full Pilot Experiment](chap2_experiment_full_pilot.qmd)
 
+[Anonymized Full  Experiment](chap2_experiment_full.qmd)
 
-[Anonymized Dissertation Grant Extension](chap2_grants_ext.qmd)
-
-
-## European Social Survey Occupation Plots
-
-[Replication Files](chap2_occ_plot.qmd)
-
-
-## Power Analysis Documents
-
-[Experiment Power Analysis](chap2_power_experiment.qmd)
-
-[Survey Power Analysis](chap2_power_survey.qmd)
-
-
-
-## IRB Applications
-
-[Anonymized IRB Application for Survey](chap2_irb_survey.qmd)
-
-[Anonymized IRB Application for Experiment](chap2_irb.qmd)
-
-
-## Data Management Plans
-
-
-
-
-
-## Pre Registrations
-
+[Anonymized IRB Application](chap2_irb.qmd)
 
 [Anonymized Experiment Preregistration](chap2_experiment_preregistration.qmd)
 
-[Anonymized Survey Preregistration](chap2_survey_preregistration.qmd)
+## Section C: Survey Materials
+[Data Generation R-File](chap2_power_survey.qmd)
+
+[Power Analysis Plots R-File](chap2_power_survey_plot.qmd)
+
+[Power Analysis Justification](chap2_power_survey_just.qmd)
+
+[Survey Provider Justification](chap2_survey_prov_just.qmd)
+
+[Data Codebook](chap2_survey_codebook.qmd)
+
+[Anonymized Survey](chap2_survey_full.qmd)
+
+[Anonymized IRB Application](chap2_survey_irb.qmd)
+
+
+# Additional Materials: 
+
+## Previously Received Grants
+[Anonymized Dissertation Grant Received](chap2_grants.qmd)
+
+[Anonymized Dissertation Grant Extension](chap2_grants_ext.qmd)

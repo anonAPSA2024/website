@@ -3,11 +3,10 @@ project:
   output-dir: docs
   
 website:
-  title: "Anonymized APSA DDRIG Grant Materials"
+  title: "Knowledge of Job Insecurity and Policy Preferences Supplementary Materials (Anonymized)"
   navbar:
     left:
       - href: chap2.qmd
-      - chap2_grants.qmd
   page-footer:
     right: ""
     left: "&copy; Copyright 2024"
