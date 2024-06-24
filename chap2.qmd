@@ -27,7 +27,7 @@ title: "Overview"
 
 [Anonymized Survey](chap2_survey_full.qmd)
 
-[Anonymized IRB Application](chap2_survey_irb.qmd)
+[Anonymized IRB Application](chap2_irb_survey.qmd)
 
 
 # Additional Materials: 
